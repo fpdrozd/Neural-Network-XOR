@@ -1,176 +1,92 @@
-// Daniel Shiffman
-// Nature of Code: Intelligence and Learning
-// https://github.com/shiffman/NOC-S17-2-Intelligence-Learning
-
-// Based on "Make Your Own Neural Network" by Tariq Rashid
-// https://github.com/makeyourownneuralnetwork/
-
-// This version of nn.js adds some functionality for evolution
-// copy() and mutate()
-
-// Sigmoid function
-// This is used for activation
-// https://en.wikipedia.org/wiki/Sigmoid_function
-NeuralNetwork.sigmoid = function(x) {
-  var y = 1 / (1 + pow(Math.E, -x));
-  return y;
+function sigmoid(x) {
+  return 1 / (1 + Math.exp(-x));
 }
-
-// This is the Sigmoid derivative!
-NeuralNetwork.dSigmoid = function(x) {
+function dsigmoid(x) {
   return x * (1 - x);
 }
 
-NeuralNetwork.tanh = function(x) {
-  var y = Math.tanh(x);
-  return y;
-}
+class NeuralNetwork {
+  constructor(input_nodes, hidden_nodes, output_nodes) {
+    this.input_nodes = input_nodes;
+    this.hidden_nodes = hidden_nodes;
+    this.output_nodes = output_nodes;
 
-NeuralNetwork.dtanh = function(x) {
-  var y = 1 / (pow(Math.cosh(x), 2));
-  return y;
-}
+    this.weights_ih = new Matrix(this.hidden_nodes, this.input_nodes);
+    this.weights_ho = new Matrix(this.output_nodes, this.hidden_nodes);
+    this.weights_ih.randomize();
+    this.weights_ho.randomize();
 
-// This is how we adjust weights ever so slightly
-function mutate(x) {
-  if (random(1) < 0.1) {
-    var offset = randomGaussian() * 0.5;
-    // var offset = random(-0.1, 0.1);
-    var newx = x + offset;
-    return newx;
-  } else {
-    return x;
-  }
-}
+    this.bias_h = new Matrix(this.hidden_nodes, 1);
+    this.bias_o = new Matrix(this.output_nodes, 1);
+    this.bias_h.randomize();
+    this.bias_o.randomize();
 
-// Neural Network constructor function
-function NeuralNetwork(inputnodes, hiddennodes, outputnodes, learning_rate, activation) {
+    this.learning_rate = 0.1;
 
-  // If it's a copy of another NN
-  if (arguments[0] instanceof NeuralNetwork) {
-    var nn = arguments[0];
-    this.inodes = nn.inodes;
-    this.hnodes = nn.hnodes;
-    this.onodes = nn.onodes;
-    this.wih = nn.wih.copy();
-    this.who = nn.who.copy();
-    this.activation = nn.activation;
-    this.derivative = nn.derivative;
-    this.lr = this.lr;
-  } else {
-    // Number of nodes in layer (input, hidden, output)
-    // This network is limited to 3 layers
-    this.inodes = inputnodes;
-    this.hnodes = hiddennodes;
-    this.onodes = outputnodes;
-
-    // These are the weight matrices
-    // wih: weights from input to hidden
-    // who: weights from hidden to output
-    // weights inside the arrays are w_i_j
-    // where link is from node i to node j in the next layer
-    // Matrix is rows X columns
-    this.wih = new Matrix(this.hnodes, this.inodes);
-    this.who = new Matrix(this.onodes, this.hnodes);
-
-    // Start with random values
-    this.wih.randomize();
-    this.who.randomize();
-
-    // Default learning rate of 0.1
-    this.lr = learning_rate || 0.1;
-
-    // Activation Function
-    if (activation == 'tanh') {
-      this.activation = NeuralNetwork.tanh;
-      this.derivative = NeuralNetwork.dtanh;
-    } else {
-      this.activation = NeuralNetwork.sigmoid;
-      this.derivative = NeuralNetwork.dSigmoid;
-    }
-
+    console.log('Weights:');
+    console.table(this.weights_ih.matrix);
+    console.table(this.weights_ho.matrix);
+    console.log(''); console.log('');
+    console.log('Biases:');
+    console.table(this.bias_h.matrix);
+    console.table(this.bias_o.matrix);
+    console.log(''); console.log('');
   }
 
-}
+  feedForward(input_array) {
+    let inputs = Matrix.fromArray(input_array);
 
-NeuralNetwork.prototype.copy = function() {
-  return new NeuralNetwork(this);
-}
+    //Dot product -> biases -> activation function (input to hidden)
+    let hidden = Matrix.dot(this.weights_ih, inputs);
+    hidden.add(this.bias_h);
+    hidden = Matrix.map(hidden, sigmoid);
 
-NeuralNetwork.prototype.mutate = function() {
-  this.wih = Matrix.map(this.wih, mutate);
-  this.who = Matrix.map(this.who, mutate);
-}
+    //Dot product -> biases -> activation function (hidden to output)
+    let output = Matrix.dot(this.weights_ho, hidden);
+    output.add(this.bias_o);
+    output = Matrix.map(output, sigmoid);
 
-// Train the network with inputs and targets
-NeuralNetwork.prototype.train = function(inputs_array, targets_array) {
+    return output.toArray();
+  }
 
-  // Turn input and target arrays into matrices
-  var inputs = Matrix.fromArray(inputs_array);
-  var targets = Matrix.fromArray(targets_array);
+  train(inputs_array, targets_array) {
+    let inputs = Matrix.fromArray(inputs_array);
+    let targets = Matrix.fromArray(targets_array);
 
-  // The input to the hidden layer is the weights (wih) multiplied by inputs
-  var hidden_inputs = Matrix.dot(this.wih, inputs);
-  // The outputs of the hidden layer pass through sigmoid activation function
-  var hidden_outputs = Matrix.map(hidden_inputs, this.activation);
+    //Feed forward
+    let hidden = Matrix.dot(this.weights_ih, inputs);
+    hidden.add(this.bias_h);
+    hidden = Matrix.map(hidden, sigmoid);
 
-  // The input to the output layer is the weights (who) multiplied by hidden layer
-  var output_inputs = Matrix.dot(this.who, hidden_outputs);
+    let outputs = Matrix.dot(this.weights_ho, hidden);
+    outputs.add(this.bias_o);
+    outputs = Matrix.map(outputs, sigmoid);
 
-  // The output of the network passes through sigmoid activation function
-  var outputs = Matrix.map(output_inputs, this.activation);
+    //Back propagation (output to hidden)
+    let output_errors = Matrix.subtract(targets, outputs);
 
-  // Error is TARGET - OUTPUT
-  var output_errors = Matrix.subtract(targets, outputs);
+    let gradients = Matrix.map(outputs, dsigmoid);
+    gradients.multiply(output_errors);
+    gradients.multiply(this.learning_rate);
 
-  // Now we are starting back propogation!
+    let hidden_t = Matrix.transpose(hidden);
+    let weights_ho_deltas = Matrix.dot(gradients, hidden_t);
 
-  // Transpose hidden <-> output weights
-  var whoT = this.who.transpose();
-  // Hidden errors is output error multiplied by weights (who)
-  var hidden_errors = Matrix.dot(whoT, output_errors)
+    this.weights_ho.add(weights_ho_deltas);
+    this.bias_o.add(gradients);
 
-  // Calculate the gradient, this is much nicer in python!
-  var gradient_output = Matrix.map(outputs, this.derivative);
-  // Weight by errors and learing rate
-  gradient_output.multiply(output_errors);
-  gradient_output.multiply(this.lr);
+    //Back propagation (hidden to input)
+    let weights_ho_t = Matrix.transpose(this.weights_ho);
+    let hidden_errors = Matrix.dot(weights_ho_t, output_errors);
 
-  // Gradients for next layer, more back propogation!
-  var gradient_hidden = Matrix.map(hidden_outputs, this.derivative);
-  // Weight by errors and learning rate
-  gradient_hidden.multiply(hidden_errors);
-  gradient_hidden.multiply(this.lr);
+    let hidden_gradients = Matrix.map(hidden, dsigmoid);
+    hidden_gradients.multiply(hidden_errors);
+    hidden_gradients.multiply(this.learning_rate);
 
-  // Change in weights from HIDDEN --> OUTPUT
-  var hidden_outputs_T = hidden_outputs.transpose();
-  var deltaW_output = Matrix.dot(gradient_output, hidden_outputs_T);
-  this.who.add(deltaW_output);
+    let inputs_t = Matrix.transpose(inputs);
+    let weights_ih_deltas = Matrix.dot(hidden_gradients, inputs_t);
 
-  // Change in weights from INPUT --> HIDDEN
-  var inputs_T = inputs.transpose();
-  var deltaW_hidden = Matrix.dot(gradient_hidden, inputs_T);
-  this.wih.add(deltaW_hidden);
-}
-
-
-// Query the network!
-NeuralNetwork.prototype.query = function(inputs_array) {
-
-  // Turn input array into a matrix
-  var inputs = Matrix.fromArray(inputs_array);
-
-  // The input to the hidden layer is the weights (wih) multiplied by inputs
-  var hidden_inputs = Matrix.dot(this.wih, inputs);
-  // The outputs of the hidden layer pass through sigmoid activation function
-  var hidden_outputs = Matrix.map(hidden_inputs, this.activation);
-
-  // The input to the output layer is the weights (who) multiplied by hidden layer
-  var output_inputs = Matrix.dot(this.who, hidden_outputs);
-
-  // The output of the network passes through sigmoid activation function
-  var outputs = Matrix.map(output_inputs, this.activation);
-
-  // Return the result as an array
-  return outputs.toArray();
+    this.weights_ih.add(weights_ih_deltas);
+    this.bias_h.add(hidden_gradients);
+  }
 }

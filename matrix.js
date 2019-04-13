@@ -1,13 +1,3 @@
-// Daniel Shiffman
-// Nature of Code: Intelligence and Learning
-// https://github.com/shiffman/NOC-S17-2-Intelligence-Learning
-
-// Based on "Make Your Own Neural Network" by Tariq Rashid
-// https://github.com/makeyourownneuralnetwork/
-
-// This is my own ridiculous Matrix implemenation
-// Would probably make more sense to use math.js or something else!
-
 // Make a matrix full of zeros
 function Matrix(rows, cols) {
   this.rows = rows;
@@ -21,12 +11,15 @@ function Matrix(rows, cols) {
   }
 }
 
+Matrix.prototype.print = function () {
+  console.table(this.matrix);
+}
+
 // This fills the matrix with random values (gaussian distribution)
 Matrix.prototype.randomize = function() {
   for (var i = 0; i < this.rows; i++) {
     for (var j = 0; j < this.cols; j++) {
-      this.matrix[i][j] = randomGaussian();
-      //this.matrix[i][j] = random(-1, 1);
+      this.matrix[i][j] = Math.random() * 2 - 1;
     }
   }
 }
@@ -46,11 +39,11 @@ Matrix.prototype.toArray = function() {
 
 // This transposes a matrix
 // rows X cols --> cols X rows
-Matrix.prototype.transpose = function() {
-  var result = new Matrix(this.cols, this.rows);
+Matrix.transpose = function(matrix) {
+  var result = new Matrix(matrix.cols, matrix.rows);
   for (var i = 0; i < result.rows; i++) {
     for (var j = 0; j < result.cols; j++) {
-      result.matrix[i][j] = this.matrix[j][i];
+      result.matrix[i][j] = matrix.matrix[j][i];
     }
   }
   return result;
@@ -164,56 +157,4 @@ Matrix.fromArray = function(array) {
     m.matrix[i][0] = array[i];
   }
   return m;
-}
-
-// Visualize the matrix in the browser window
-// if idSelector is passed, the matrix is displayed in the table with the given id
-Matrix.prototype.visualize = function(idSelector) {
-  let table;
-  if (idSelector) {
-    if (typeof idSelector !== 'string') {
-      console.error('Invalid argument type (expected string, received ' + typeof idSelector + ')');
-      return;
-    }
-    // select table by id, otherwise create new table if not exists
-    table = document.getElementById(idSelector);
-    if (table === null) {
-      table = document.createElement('table');
-      table.id = idSelector;
-      document.body.appendChild(table);
-    }
-    table.innerHTML = ''; // clear
-    table.setAttribute('title', 'id: ' + idSelector);
-  } else {
-    // append table without id to body
-    table = document.createElement('table');
-    document.body.appendChild(table);
-  }
-  table.className = 'vis-matrix';
-  table.style.margin = '40px';
-  table.style.padding = '4px 10px';
-  table.style.borderLeft = '2px solid black';
-  table.style.borderRight = '2px solid black';
-  table.style.borderRadius = '20px';
-  this.matrix.forEach((el, iRow) => {
-    let row = document.createElement('tr');
-    el.forEach((el, iCol) => {
-      let cell = document.createElement('td');
-      cell.innerHTML = el;
-      cell.setAttribute('title', '[' + iRow + ',' + iCol + ']');
-      cell.style.padding = '3px 8px';
-      cell.style.textAlign = 'center';
-      cell.style.color = 'black';
-      row.appendChild(cell);
-    })
-    table.appendChild(row);
-  });
-}
-
-Matrix.prototype.pprint = function(){ //"pretty print" the matrix
-  let fstring = '['; 
-  for (let i=0;i<this.matrix.length;i++){
-    fstring +=  (i!=0?' ':'') + ` [${this.matrix[i].map(x=>' ' + x.toString() + ' ')}],\n`;
-  }
-  console.log(fstring.substring(0,fstring.length-2) + ' ]');
 }
